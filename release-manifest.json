@@ -1,5 +1,6 @@
 {
   "version": "6.0.3",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/main/release-package.json",
-  "notes": "自動更新機能の初期設定版"
+  "publishedAt": "2026-08-31",
+  "notes": "システム更新画面の表示修正を含む初期自動更新版",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/main/release-package-v6.0.3.json"
 }
