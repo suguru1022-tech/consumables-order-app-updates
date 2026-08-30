@@ -5,8 +5,10 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.0.8';
+const APP_VERSION = '6.0.9';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
+const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
+const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
@@ -506,7 +508,7 @@ function getSystemUpdateInfo(pin) {
   const settings = getSettings_(ss);
   return {
     currentVersion: APP_VERSION,
-    manifestUrl: String(settings['更新マニフェストURL'] || ''),
+    manifestUrl: getUpdateManifestUrl_(ss),
     serviceUrl: String(settings['WebアプリURL'] || ScriptApp.getService().getUrl() || ''),
     deploymentId: String(settings['WebアプリデプロイID'] || ''),
     scriptId: ScriptApp.getScriptId(),
@@ -517,19 +519,17 @@ function getSystemUpdateInfo(pin) {
 
 function saveUpdateManifestUrl(payload) {
   assertAdmin_(payload && payload.pin);
-  const url = String((payload && payload.url) || '').trim();
-  if (url && !/^https:\/\//i.test(url)) throw new Error('更新マニフェストURLは https:// から始まるURLを設定してください。');
+  const url = String((payload && payload.url) || '').trim() || DEFAULT_UPDATE_MANIFEST_URL;
+  if (!/^https:\/\//i.test(url)) throw new Error('更新マニフェストURLは https:// から始まるURLを設定してください。');
   const ss = getSS_();
-  setSetting_(ss, '更新マニフェストURL', url);
+  persistUpdateManifestUrl_(ss, url);
   return {ok:true, url:url};
 }
 
 function checkForAppUpdate(pin) {
   assertAdmin_(pin);
   const ss = getSS_();
-  const settings = getSettings_(ss);
-  const url = String(settings['更新マニフェストURL'] || '').trim();
-  if (!url) throw new Error('更新マニフェストURLが未設定です。最初に更新元URLを設定してください。');
+  const url = getUpdateManifestUrl_(ss);
   const manifest = fetchJson_(url, '更新マニフェスト');
   validateReleaseManifest_(manifest);
   const hasUpdate = compareVersions_(String(manifest.version), APP_VERSION) > 0;
@@ -550,8 +550,7 @@ function applyAppUpdate(payload) {
   assertAdmin_(payload && payload.pin);
   const ss = getSS_();
   const settings = getSettings_(ss);
-  const manifestUrl = String(settings['更新マニフェストURL'] || '').trim();
-  if (!manifestUrl) throw new Error('更新マニフェストURLが未設定です。');
+  const manifestUrl = getUpdateManifestUrl_(ss);
 
   const manifest = fetchJson_(manifestUrl, '更新マニフェスト');
   validateReleaseManifest_(manifest);
@@ -584,6 +583,8 @@ function applyAppUpdate(payload) {
   const backupFile = saveUpdateBackup_(currentContent, APP_VERSION);
 
   try {
+    // ソース差し替えで実行が切り替わっても失われないよう、更新前に二重保存します。
+    persistUpdateManifestUrl_(ss, manifestUrl);
     scriptApiRequest_('put', '/v1/projects/' + encodeURIComponent(scriptId) + '/content', {files:packageData.files});
     const version = scriptApiRequest_('post', '/v1/projects/' + encodeURIComponent(scriptId) + '/versions', {
       description:'消耗品管理・発注 v' + targetVersion + ' 自動更新'
@@ -599,8 +600,7 @@ function applyAppUpdate(payload) {
         description:'消耗品管理・発注 v' + targetVersion
       }
     });
-    // ソース更新後も、ユーザーが設定した更新元URLを確実に維持します。
-    setSetting_(ss, '更新マニフェストURL', manifestUrl);
+    persistUpdateManifestUrl_(ss, manifestUrl);
     setSetting_(ss, 'アプリバージョン', targetVersion);
     setSetting_(ss, '最終更新バージョン', targetVersion);
     return {
@@ -716,6 +716,20 @@ function setSetting_(ss, key, value) {
   const idx=vals.findIndex(function(r){return r[0]===key;});
   if(idx>=0) sheet.getRange(idx+2,2).setValue(value);
   else sheet.appendRow([key,value]);
+}
+
+function persistUpdateManifestUrl_(ss, url) {
+  const normalized = String(url || '').trim() || DEFAULT_UPDATE_MANIFEST_URL;
+  setSetting_(ss, '更新マニフェストURL', normalized);
+  PropertiesService.getScriptProperties().setProperty(UPDATE_MANIFEST_URL_PROPERTY, normalized);
+  return normalized;
+}
+
+function getUpdateManifestUrl_(ss) {
+  const settings = getSettings_(ss);
+  const sheetUrl = String(settings['更新マニフェストURL'] || '').trim();
+  const propertyUrl = String(PropertiesService.getScriptProperties().getProperty(UPDATE_MANIFEST_URL_PROPERTY) || '').trim();
+  return persistUpdateManifestUrl_(ss, sheetUrl || propertyUrl || DEFAULT_UPDATE_MANIFEST_URL);
 }
 
 function errorMessage_(e) {
