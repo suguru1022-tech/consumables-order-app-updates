@@ -1,6 +1,6 @@
 {
-  "version": "6.0.6",
+  "version": "6.0.7",
   "publishedAt": "2026-08-31",
-  "notes": "在庫・発注画面の現在庫と発注数を背景色で視覚的に区別し、スマホでも見やすく改善",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.0.6.json"
+  "notes": "システム更新後も保存済みの更新マニフェストURLが維持されるよう修正",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.0.7.json"
 }
