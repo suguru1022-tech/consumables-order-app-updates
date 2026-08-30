@@ -4,9 +4,3 @@
   "notes": "発注履歴の初回表示に読み込み中表示を追加し、取得済み履歴を店舗ごとにキャッシュ。取得失敗時の再読み込みにも対応",
   "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.1.json"
 }
-{
-  "version": "6.1.0",
-  "publishedAt": "2026-08-31",
-  "notes": "在庫・発注画面の商品ごとに、選択店舗での前回発注日時と発注数量を表示する機能を追加",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.0.json"
-}
