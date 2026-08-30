@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.0.9';
+const APP_VERSION = '6.1.0';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -233,8 +233,37 @@ function getInventory(store) {
   const sheet = ss.getSheetByName(SHEETS.INVENTORY);
   const values = sheet && sheet.getLastRow() > 1 ? sheet.getRange(2,1,sheet.getLastRow()-1,6).getValues() : [];
   const latest = {};
-  values.forEach(r => { if (r[1] === store) latest[r[2]] = Number(r[4]) || 0; });
-  return products.map(p => ({...p, currentStock: latest[p.id] ?? 0}));
+  const normalizedStore = String(store || '').trim();
+  values.forEach(r => { if (String(r[1] || '').trim() === normalizedStore) latest[r[2]] = Number(r[4]) || 0; });
+
+  const orderSheet = ss.getSheetByName(SHEETS.ORDERS);
+  const orderValues = orderSheet && orderSheet.getLastRow() > 1 ? orderSheet.getRange(2,1,orderSheet.getLastRow()-1,11).getValues() : [];
+  const lastOrders = {};
+  orderValues.forEach(function(r) {
+    if (String(r[2] || '').trim() !== normalizedStore) return;
+    const productId = String(r[4] || '').trim();
+    if (!productId) return;
+    const timestamp = r[1] instanceof Date ? r[1].getTime() : (new Date(r[1]).getTime() || 0);
+    if (!lastOrders[productId] || timestamp >= lastOrders[productId].timestamp) {
+      lastOrders[productId] = {
+        timestamp:timestamp,
+        date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
+        qty:Number(r[6]) || 0,
+        unit:String(r[7] || '')
+      };
+    }
+  });
+
+  return products.map(function(p) {
+    const last = lastOrders[p.id] || null;
+    return {
+      ...p,
+      currentStock:latest[p.id] ?? 0,
+      lastOrderDate:last ? last.date : '',
+      lastOrderQty:last ? last.qty : 0,
+      lastOrderUnit:last ? last.unit : ''
+    };
+  });
 }
 
 function saveInventoryItem(payload) {
