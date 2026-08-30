@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.0.6';
+const APP_VERSION = '6.0.7';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 
 function doGet() {
@@ -585,6 +585,8 @@ function applyAppUpdate(payload) {
         description:'消耗品管理・発注 v' + targetVersion
       }
     });
+    // ソース更新後も、ユーザーが設定した更新元URLを確実に維持します。
+    setSetting_(ss, '更新マニフェストURL', manifestUrl);
     setSetting_(ss, 'アプリバージョン', targetVersion);
     setSetting_(ss, '最終更新バージョン', targetVersion);
     return {
