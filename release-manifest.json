@@ -1,6 +1,6 @@
 {
-  "version": "6.0.9",
+  "version": "6.1.0",
   "publishedAt": "2026-08-31",
-  "notes": "更新マニフェストURLを更新前にSettingsとScript Propertiesへ二重保存し、未設定時は正式URLを自動復元するよう改善",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.0.9.json"
+  "notes": "在庫・発注画面の商品ごとに、選択店舗での前回発注日時と発注数量を表示する機能を追加",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.0.json"
 }
