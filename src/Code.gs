@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.0.7';
+const APP_VERSION = '6.0.8';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 
 function doGet() {
@@ -276,7 +276,21 @@ function getOrderHistory(store) {
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
   const values = sheet.getRange(2,1,sheet.getLastRow()-1,11).getValues();
-  return values.filter(r => !store || r[2] === store).slice(-100).reverse().map(r => ({orderId:r[0],date:r[1],store:r[2],user:r[3],productName:r[5],qty:r[6],unit:r[7],status:r[8]}));
+  const normalizedStore = String(store || '').trim();
+  return values
+    .filter(r => !normalizedStore || String(r[2] || '').trim() === normalizedStore)
+    .slice(-100)
+    .reverse()
+    .map(r => ({
+      orderId:r[0],
+      date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
+      store:String(r[2] || '').trim(),
+      user:r[3],
+      productName:r[5],
+      qty:r[6],
+      unit:r[7],
+      status:r[8]
+    }));
 }
 
 function verifyAdminPin(pin) {
