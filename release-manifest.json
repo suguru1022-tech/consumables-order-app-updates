@@ -1,6 +1,6 @@
 {
-  "version": "6.0.7",
+  "version": "6.0.8",
   "publishedAt": "2026-08-31",
-  "notes": "システム更新後も保存済みの更新マニフェストURLが維持されるよう修正",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.0.7.json"
+  "notes": "発注履歴の日付を安全に文字列化し、店舗名の空白差を吸収して履歴を正しく表示するよう修正。読み込み失敗時の画面内エラー表示も追加",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.0.8.json"
 }
