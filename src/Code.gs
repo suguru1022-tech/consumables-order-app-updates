@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.1';
+const APP_VERSION = '6.1.2';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -341,7 +341,9 @@ function getHeadOfficeOrders(pin) {
     const p = products[r[4]] || {};
     return {
       rowNumber: sheet.getLastRow() - revIdx,
-      orderId:r[0], date:r[1], store:r[2], user:r[3], productId:r[4], productName:r[5], qty:r[6], unit:r[7], status:r[8], note:r[10],
+      orderId:r[0],
+      date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
+      store:r[2], user:r[3], productId:r[4], productName:r[5], qty:r[6], unit:r[7], status:r[8], note:r[10],
       supplier:p.supplier || '', orderUrl:p.orderUrl || '', imageUrl:p.imageUrl || '', productMemo:p.productMemo || '', packQty:p.packQty || 1, stockUnit:p.unit || '', orderUnitName:p.orderUnitName || p.unit || ''
     };
   });
