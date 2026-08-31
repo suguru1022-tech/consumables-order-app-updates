@@ -80,7 +80,7 @@ button:not(:disabled):active,.linkbtn:not(.disabled):active{transform:scale(.97)
       <div class="section-title"><h3>システム更新</h3><button class="secondary" onclick="loadSystemUpdateInfo(this)">情報を更新</button></div>
       <div class="muted">初回だけ更新元URLの設定とGoogleの権限設定が必要です。以降は「最新版を確認」→「最新版に更新」で更新できます。</div>
       <div style="margin-top:14px"><label>現在のバージョン</label><div id="sysCurrentVersion" class="pname">読み込み中…</div></div>
-      <div style="margin-top:12px"><label>更新マニフェストURL</label><input id="updateManifestUrl" placeholder="https://.../manifest.json"></div>
+      <div style="margin-top:12px"><label>更新マニフェストURL</label><input id="updateManifestUrl" value="https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json" placeholder="https://.../manifest.json"></div>
       <div class="supplier-actions"><button class="secondary" onclick="saveManifestUrl(this)">URLを保存</button><button class="primary" onclick="checkSystemUpdate(this)">最新版を確認</button></div>
       <div id="updateResult" class="memo" style="display:none;margin-top:12px"></div>
       <button id="applyUpdateBtn" class="primary" style="display:none;margin-top:12px" onclick="applySystemUpdate(this)">最新版に更新</button>
@@ -102,6 +102,7 @@ var adminPin='';
 var hqOrders=[];
 var historyCache={};
 var historyLoading={};
+var defaultManifestUrl='https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 var numberPicker={type:'',id:'',value:0,step:1,max:100,scrollTimer:null};
 
 window.onerror=function(message,source,lineno,colno,error){
@@ -222,7 +223,7 @@ function loadSystemUpdateInfo(btn){
     .withSuccessHandler(function(info){
       if(btn)setButtonBusy(btn,false);
       byId('sysCurrentVersion').textContent='v'+String(info.currentVersion||'');
-      byId('updateManifestUrl').value=String(info.manifestUrl||'');
+      byId('updateManifestUrl').value=String(info.manifestUrl||byId('updateManifestUrl').value||defaultManifestUrl);
       var box=byId('updateResult');
       box.style.display='block';
       box.innerHTML='<strong>現在バージョン：</strong> v'+esc(info.currentVersion||'')+
@@ -232,6 +233,7 @@ function loadSystemUpdateInfo(btn){
     })
     .withFailureHandler(function(e){
       if(btn)setButtonBusy(btn,false);
+      if(!byId('updateManifestUrl').value)byId('updateManifestUrl').value=defaultManifestUrl;
       showMsg(errorText(e),'error');
     })
     .getSystemUpdateInfo(adminPin);
@@ -279,10 +281,13 @@ function checkSystemUpdate(btn){
 
 function applySystemUpdate(btn){
   if(!window.confirm('最新版へ更新します。更新前のコードはGoogle Driveへ自動バックアップされます。続行しますか？'))return;
+  var manifestUrl=String(byId('updateManifestUrl').value||defaultManifestUrl).replace(/^\s+|\s+$/g,'');
+  byId('updateManifestUrl').value=manifestUrl;
   setButtonBusy(btn,true,'更新中…');
   google.script.run
     .withSuccessHandler(function(r){
       setButtonBusy(btn,false);
+      byId('updateManifestUrl').value=manifestUrl;
       byId('applyUpdateBtn').style.display='none';
       var box=byId('updateResult');
       box.style.display='block';
@@ -295,7 +300,7 @@ function applySystemUpdate(btn){
       setButtonBusy(btn,false);
       showMsg(errorText(e),'error');
     })
-    .applyAppUpdate({pin:adminPin});
+    .applyAppUpdate({pin:adminPin,manifestUrl:manifestUrl});
 }
 
 function normalizeImageUrl(url){var u=String(url||'').replace(/^\s+|\s+$/g,''),m=u.match(/drive\.google\.com\/file\/d\/([^/]+)/);if(!m)m=u.match(/[?&]id=([^&]+)/);if(m&&m[1])return 'https://drive.google.com/thumbnail?id='+encodeURIComponent(m[1])+'&sz=w1200';return u;}
