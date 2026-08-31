@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.2';
+const APP_VERSION = '6.1.3';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -581,7 +581,12 @@ function applyAppUpdate(payload) {
   assertAdmin_(payload && payload.pin);
   const ss = getSS_();
   const settings = getSettings_(ss);
-  const manifestUrl = getUpdateManifestUrl_(ss);
+  const requestedManifestUrl = String((payload && payload.manifestUrl) || '').trim();
+  if (requestedManifestUrl && !/^https:\/\//i.test(requestedManifestUrl)) {
+    throw new Error('更新マニフェストURLは https:// から始まるURLを設定してください。');
+  }
+  // 更新ボタンを押した時点の入力値を最優先し、コード差し替え前に必ず永続化します。
+  const manifestUrl = persistUpdateManifestUrl_(ss, requestedManifestUrl || getUpdateManifestUrl_(ss));
 
   const manifest = fetchJson_(manifestUrl, '更新マニフェスト');
   validateReleaseManifest_(manifest);
