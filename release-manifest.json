@@ -1,6 +1,6 @@
 {
-  "version": "6.1.2",
+  "version": "6.1.3",
   "publishedAt": "2026-09-01",
-  "notes": "本部発注一覧の発注日時を文字列へ変換し、Google Apps Scriptから画面への返却失敗で一覧が表示されない問題を修正",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.2.json"
+  "notes": "システム更新時に画面の更新マニフェストURLをサーバーへ明示的に渡して更新前後に再保存し、画面側にも正式URLの既定値を保持するよう改善",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.3.json"
 }
