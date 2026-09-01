@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.2.4';
+const APP_VERSION = '6.3.0';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -500,6 +500,12 @@ function updateProductMaster(payload) {
   for (var i = 0; i < rows.length; i++) if (String(rows[i][0]) === String(payload.productId)) { idx = i; break; }
   if (idx < 0) throw new Error('商品が見つかりません。');
   var rowNo = idx + 2;
+  var supplier = String(payload.supplier || '').trim();
+  var orderUrl = String(payload.orderUrl || '').trim();
+  var imageUrl = String(payload.imageUrl || '').trim();
+  var productMemo = String(payload.productMemo || '').trim();
+  if (orderUrl && !/^https?:\/\//i.test(orderUrl)) throw new Error('発注ページURLは http:// または https:// から入力してください。');
+  if (imageUrl && !/^https?:\/\//i.test(imageUrl)) throw new Error('商品画像URLは http:// または https:// から入力してください。');
   sheet.getRange(rowNo,2,1,7).setValues([[
     category,
     name,
@@ -512,6 +518,7 @@ function updateProductMaster(payload) {
   var packQty = Math.max(1, Number(payload.packQty) || 1);
   var orderUnitName = String(payload.orderUnitName || '').trim() || unit;
   sheet.getRange(rowNo,13,1,2).setValues([[packQty,orderUnitName]]);
+  sheet.getRange(rowNo,9,1,4).setValues([[supplier,orderUrl,imageUrl,productMemo]]);
   return {ok:true};
 }
 
