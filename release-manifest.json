@@ -1,6 +1,6 @@
 {
-  "version": "6.1.8",
+  "version": "6.1.9",
   "publishedAt": "2026-09-01",
-  "notes": "店舗側の履歴から発注依頼の商品を個別に取り下げ可能に改善。手配済みの商品は取り下げ不可とし、同時操作による二重処理を防止",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.8.json"
+  "notes": "システム更新後は新バージョンの反映を確認できるまで再読み込みせず待機し、白画面を防止。カウントダウンと反映待ち表示を赤字で強調",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.9.json"
 }
