@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.5';
+const APP_VERSION = '6.1.6';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -315,7 +315,7 @@ function getOrderHistory(store) {
     .reverse()
     .map(r => ({
       orderId:r[0],
-      date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
+      date:formatDateTimeJa_(r[1]),
       store:String(r[2] || '').trim(),
       user:r[3],
       productName:r[5],
@@ -387,6 +387,15 @@ function formatDateInputValue_(value) {
   const text = String(value || '').trim();
   const match = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
   return match ? match[1] + '-' + ('0' + match[2]).slice(-2) + '-' + ('0' + match[3]).slice(-2) : text;
+}
+
+function formatDateTimeJa_(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return String(value || '');
+  const base = Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+  const time = Utilities.formatDate(date, Session.getScriptTimeZone(), 'HH:mm');
+  const weekday = ['日','月','火','水','木','金','土'][Number(Utilities.formatDate(date, Session.getScriptTimeZone(), 'u')) % 7];
+  return base + '（' + weekday + '） ' + time;
 }
 
 
