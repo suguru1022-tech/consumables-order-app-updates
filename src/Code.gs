@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.4';
+const APP_VERSION = '6.1.5';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -306,7 +306,8 @@ function getOrderHistory(store) {
   const ss = getSS_();
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  const values = sheet.getRange(2,1,sheet.getLastRow()-1,11).getValues();
+  ensureOrdersDeliveryColumns_(sheet);
+  const values = sheet.getRange(2,1,sheet.getLastRow()-1,13).getValues();
   const normalizedStore = String(store || '').trim();
   return values
     .filter(r => !normalizedStore || String(r[2] || '').trim() === normalizedStore)
@@ -320,7 +321,9 @@ function getOrderHistory(store) {
       productName:r[5],
       qty:r[6],
       unit:r[7],
-      status:r[8]
+      status:r[8],
+      deliveryFrom:formatDateInputValue_(r[11]),
+      deliveryTo:formatDateInputValue_(r[12])
     }));
 }
 
