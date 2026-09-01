@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.6.5';
+const APP_VERSION = '6.6.7';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -344,8 +344,57 @@ function getInitialData() {
   const settings = getSettings_(ss);
   return {
     appName: settings['管理アプリ名'] || '消耗品管理・発注',
-    stores: (settings['店舗一覧'] || '').split(',').map(s => s.trim()).filter(Boolean)
+    stores: (settings['店舗一覧'] || '').split(',').map(s => s.trim()).filter(Boolean),
+    staffByStore: getStaffByStore_(settings)
   };
+}
+
+function getStaffNames(store) {
+  return getStaffByStore_(getSettings_(getSS_()))[String(store || '').trim()] || [];
+}
+
+function saveStaffName(payload) {
+  const store = String(payload && payload.store || '').trim();
+  const name = String(payload && payload.name || '').trim().replace(/\s+/g, ' ');
+  if (!store || !name) throw new Error('店舗と担当者名を入力してください。');
+  if (name.length > 30) throw new Error('担当者名は30文字以内で入力してください。');
+  const ss = getSS_();
+  const settings = getSettings_(ss);
+  const stores = String(settings['店舗一覧'] || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if (stores.indexOf(store) < 0) throw new Error('店舗を選び直してください。');
+  const staffByStore = getStaffByStore_(settings);
+  const names = staffByStore[store] || [];
+  if (names.indexOf(name) < 0) names.push(name);
+  staffByStore[store] = names.sort(function(a,b){return a.localeCompare(b, 'ja');});
+  setSetting_(ss, '担当者一覧JSON', JSON.stringify(staffByStore));
+  return {ok:true, names:staffByStore[store]};
+}
+
+function deleteStaffName(payload) {
+  const store = String(payload && payload.store || '').trim();
+  const name = String(payload && payload.name || '').trim();
+  if (!store || !name) throw new Error('削除対象を確認できません。');
+  const ss = getSS_();
+  const settings = getSettings_(ss);
+  const staffByStore = getStaffByStore_(settings);
+  staffByStore[store] = (staffByStore[store] || []).filter(function(item){return item !== name;});
+  setSetting_(ss, '担当者一覧JSON', JSON.stringify(staffByStore));
+  return {ok:true, names:staffByStore[store]};
+}
+
+function getStaffByStore_(settings) {
+  const raw = String((settings || {})['担当者一覧JSON'] || '').trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    const out = {};
+    Object.keys(parsed || {}).forEach(function(store){
+      out[String(store)] = (Array.isArray(parsed[store]) ? parsed[store] : []).map(function(name){return String(name || '').trim();}).filter(Boolean);
+    });
+    return out;
+  } catch (e) {
+    return {};
+  }
 }
 
 function getInventory(store) {
