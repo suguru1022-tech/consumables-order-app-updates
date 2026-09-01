@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.2.3';
+const APP_VERSION = '6.2.4';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -281,6 +281,8 @@ function submitOrder(payload) {
   if (!payload || !payload.store || !Array.isArray(payload.items) || payload.items.length === 0) throw new Error('発注商品がありません。');
   const ss = getSS_();
   const settings = getSettings_(ss);
+  const allowedStores = String(settings['店舗一覧'] || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (allowedStores.indexOf(String(payload.store).trim()) < 0) throw new Error('選択された店舗を確認できません。店舗を選び直してください。');
   const recipient = settings['本部発注メール'];
   if (!recipient || recipient === 'head-office@example.com') throw new Error('Settingsシートの「本部発注メール」を実際のアドレスに変更してください。');
   const orderId = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + '-' + Math.floor(Math.random()*900+100);
