@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.8';
+const APP_VERSION = '6.1.9';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -626,6 +626,11 @@ function getSystemUpdateInfo(pin) {
     lastChecked: settings['最終更新確認日時'] || '',
     lastVersion: settings['最終更新バージョン'] || APP_VERSION
   };
+}
+
+function getAppVersionForReload(pin) {
+  assertAdmin_(pin);
+  return {version:APP_VERSION};
 }
 
 function saveUpdateManifestUrl(payload) {
