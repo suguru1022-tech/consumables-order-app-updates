@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.5.0';
+const APP_VERSION = '6.6.0';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -86,7 +86,7 @@ function setup() {
 
   const products = getOrCreateSheet_(ss, SHEETS.PRODUCTS);
   products.clear();
-  products.getRange(1,1,1,14).setValues([['商品ID','カテゴリ','商品名','在庫単位','最低在庫','推奨発注数（購入単位）','発注数ステップ','有効','仕入先','発注ページURL','商品画像URL','商品メモ','1発注あたり数量','発注単位名']]);
+  products.getRange(1,1,1,15).setValues([['商品ID','カテゴリ','商品名','在庫単位','最低在庫','推奨発注数（購入単位）','発注数ステップ','有効','仕入先','発注ページURL','商品画像URL','商品メモ','1発注あたり数量','発注単位名','対象外店舗']]);
   products.getRange(2,1,productRows.length,14).setValues(productRows);
   products.setFrozenRows(1);
 
@@ -300,9 +300,23 @@ function ensureV6_4_0Products_(ss) {
   }
 }
 
+// 店舗ごとの対象外商品を保持する列を、既存データを変更せず追加します。
+function ensureProductStoreExclusionColumn_(ss) {
+  var sheet = ss.getSheetByName(SHEETS.PRODUCTS);
+  if (!sheet) return;
+  if (String(sheet.getRange(1,15).getValue() || '').trim() !== '対象外店舗') {
+    sheet.getRange(1,15).setValue('対象外店舗');
+  }
+}
+
+function parseExcludedStores_(value) {
+  return String(value || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+}
+
 function getInitialData() {
   const ss = getSS_();
   ensureV6_4_0Products_(ss);
+  ensureProductStoreExclusionColumn_(ss);
   const settings = getSettings_(ss);
   return {
     appName: settings['管理アプリ名'] || '消耗品管理・発注',
@@ -313,11 +327,12 @@ function getInitialData() {
 
 function getInventory(store) {
   const ss = getSS_();
-  const products = getProducts_(ss);
+  ensureProductStoreExclusionColumn_(ss);
+  const normalizedStore = String(store || '').trim();
+  const products = getProducts_(ss, normalizedStore);
   const sheet = ss.getSheetByName(SHEETS.INVENTORY);
   const values = sheet && sheet.getLastRow() > 1 ? sheet.getRange(2,1,sheet.getLastRow()-1,6).getValues() : [];
   const latest = {};
-  const normalizedStore = String(store || '').trim();
   values.forEach(r => { if (String(r[1] || '').trim() === normalizedStore) latest[r[2]] = Number(r[4]) || 0; });
 
   const orderSheet = ss.getSheetByName(SHEETS.ORDERS);
@@ -353,6 +368,9 @@ function getInventory(store) {
 function saveInventoryItem(payload) {
   if (!payload || !payload.store || !payload.productId) throw new Error('入力内容が不正です。');
   const ss = getSS_();
+  ensureProductStoreExclusionColumn_(ss);
+  const eligible = getProducts_(ss, String(payload.store).trim()).some(function(p){return String(p.id) === String(payload.productId);});
+  if (!eligible) throw new Error('この商品は選択中の店舗では対象外です。画面を再読み込みしてください。');
   const sheet = ss.getSheetByName(SHEETS.INVENTORY);
   if (!sheet) throw new Error('Inventoryシートが見つかりません。');
   sheet.appendRow([new Date(),payload.store,payload.productId,payload.productName||'',Number(payload.currentStock)||0,payload.user||'']);
@@ -365,6 +383,14 @@ function submitOrder(payload) {
   const settings = getSettings_(ss);
   const allowedStores = String(settings['店舗一覧'] || '').split(',').map(s => s.trim()).filter(Boolean);
   if (allowedStores.indexOf(String(payload.store).trim()) < 0) throw new Error('選択された店舗を確認できません。店舗を選び直してください。');
+  ensureProductStoreExclusionColumn_(ss);
+  const eligibleProducts = {};
+  getProducts_(ss, String(payload.store).trim()).forEach(function(p){eligibleProducts[String(p.id)] = true;});
+  for (var itemIndex = 0; itemIndex < payload.items.length; itemIndex++) {
+    if (!eligibleProducts[String(payload.items[itemIndex].productId || '')]) {
+      throw new Error('発注対象外の商品が含まれています。画面を再読み込みして発注内容を確認してください。');
+    }
+  }
   const recipient = settings['本部発注メール'];
   if (!recipient || recipient === 'head-office@example.com') throw new Error('Settingsシートの「本部発注メール」を実際のアドレスに変更してください。');
   const orderId = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + '-' + Math.floor(Math.random()*900+100);
@@ -533,6 +559,7 @@ function getProductAdminMaster(pin) {
   assertAdmin_(pin);
   var ss = getSS_();
   ensureV6_4_0Products_(ss);
+  ensureProductStoreExclusionColumn_(ss);
   return getAllProducts_(ss);
 }
 
@@ -563,7 +590,7 @@ function addProduct(payload) {
     if (m) maxNo = Math.max(maxNo, Number(m[1]) || 0);
   }
   var id = 'P' + Utilities.formatString('%03d', maxNo + 1);
-  sheet.appendRow([id, category, name, unit, minStock, suggestedQty, orderUnit, true, '', '', '', '', packQty, orderUnitName]);
+  sheet.appendRow([id, category, name, unit, minStock, suggestedQty, orderUnit, true, '', '', '', '', packQty, orderUnitName, '']);
   return {ok:true, productId:id};
 }
 
@@ -603,13 +630,23 @@ function updateProductMaster(payload) {
   var orderUnitName = String(payload.orderUnitName || '').trim() || unit;
   sheet.getRange(rowNo,13,1,2).setValues([[packQty,orderUnitName]]);
   sheet.getRange(rowNo,9,1,4).setValues([[supplier,orderUrl,imageUrl,productMemo]]);
+  if (Object.prototype.hasOwnProperty.call(payload,'excludedStores')) {
+    var allowedStores = String(getSettings_(ss)['店舗一覧'] || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    var requestedExcluded = Array.isArray(payload.excludedStores) ? payload.excludedStores : [];
+    var excludedStores = [];
+    for (var e = 0; e < requestedExcluded.length; e++) {
+      var excludedStore = String(requestedExcluded[e] || '').trim();
+      if (excludedStore && allowedStores.indexOf(excludedStore) >= 0 && excludedStores.indexOf(excludedStore) < 0) excludedStores.push(excludedStore);
+    }
+    sheet.getRange(rowNo,15).setValue(excludedStores.join(','));
+  }
   return {ok:true};
 }
 
 function getAllProducts_(ss) {
   var sheet = ss.getSheetByName(SHEETS.PRODUCTS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  var cols = Math.max(14, sheet.getLastColumn());
+  var cols = Math.max(15, sheet.getLastColumn());
   var values = sheet.getRange(2,1,sheet.getLastRow()-1,cols).getValues();
   var out = [];
   for (var i = 0; i < values.length; i++) {
@@ -620,7 +657,8 @@ function getAllProducts_(ss) {
       suggestedQty:Number(r[5])||1, orderUnit:Number(r[6])||1,
       active:(r[7]===true || String(r[7]).toUpperCase()==='TRUE'),
       supplier:r[8]||'', orderUrl:r[9]||'', imageUrl:r[10]||'', productMemo:r[11]||'',
-      packQty:Number(r[12])||1, orderUnitName:r[13]||r[3]||''
+      packQty:Number(r[12])||1, orderUnitName:r[13]||r[3]||'',
+      excludedStores:parseExcludedStores_(r[14])
     });
   }
   return out;
@@ -965,13 +1003,15 @@ function assertAdmin_(pin) {
   if (!expected || String(pin || '') !== expected) throw new Error('本部管理PINが違います。');
 }
 
-function getProducts_(ss) {
+function getProducts_(ss, store) {
   const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  const cols = Math.max(14, sheet.getLastColumn());
+  const cols = Math.max(15, sheet.getLastColumn());
+  const normalizedStore = String(store || '').trim();
   return sheet.getRange(2,1,sheet.getLastRow()-1,cols).getValues()
     .filter(r => r[7] === true || String(r[7]).toUpperCase() === 'TRUE')
-    .map(r => ({id:r[0],category:r[1],name:r[2],unit:r[3],minStock:Number(r[4])||0,suggestedQty:Number(r[5])||1,orderUnit:Number(r[6])||1,supplier:r[8]||'',orderUrl:r[9]||'',imageUrl:r[10]||'',productMemo:r[11]||'',packQty:Number(r[12])||1,orderUnitName:r[13]||r[3]||''}));
+    .map(r => ({id:r[0],category:r[1],name:r[2],unit:r[3],minStock:Number(r[4])||0,suggestedQty:Number(r[5])||1,orderUnit:Number(r[6])||1,supplier:r[8]||'',orderUrl:r[9]||'',imageUrl:r[10]||'',productMemo:r[11]||'',packQty:Number(r[12])||1,orderUnitName:r[13]||r[3]||'',excludedStores:parseExcludedStores_(r[14])}))
+    .filter(function(p){return !normalizedStore || p.excludedStores.indexOf(normalizedStore) < 0;});
 }
 
 
