@@ -1,6 +1,6 @@
 {
-  "version": "6.2.0",
+  "version": "6.2.1",
   "publishedAt": "2026-09-01",
-  "notes": "本部の手配済み処理で納品予定を「日付を指定」または「未確定」から選択可能に改善。未確定の場合は店舗側履歴にも明示",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.0.json"
+  "notes": "システム更新を発注者向けの独立タブへ移動し、正式GitHub更新元へ固定。Web画面本体の配信準備完了を確認してからキャッシュを避けて再表示するよう改善",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.1.json"
 }
