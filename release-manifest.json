@@ -1,6 +1,6 @@
 {
-  "version": "6.5.0",
+  "version": "6.6.0",
   "publishedAt": "2026-09-02",
-  "notes": "店舗・日付・確認者欄、カテゴリ別商品、最低在庫、実在庫記入欄、要発注欄を備えたA4在庫チェックリストの印刷機能を追加しました。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.5.0.json"
+  "notes": "商品ごとに店舗別の対象外設定を追加し、対象外店舗の在庫・発注画面と印刷チェックリストから非表示にしました。対象外商品の誤送信もサーバー側で防止します。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.0.json"
 }
