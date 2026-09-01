@@ -5,13 +5,15 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.2.0';
+const APP_VERSION = '6.2.1';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
 
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
+  const template = HtmlService.createTemplateFromFile('Index');
+  template.appVersion = APP_VERSION;
+  return template
     .evaluate()
     .setTitle('消耗品管理・発注')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -615,23 +617,35 @@ function sanitizeFileName_(name) {
 
 // __FUNFIELDS_SELF_UPDATER_V1__
 function getSystemUpdateInfo(pin) {
-  assertAdmin_(pin);
   const ss = getSS_();
   const settings = getSettings_(ss);
   return {
     currentVersion: APP_VERSION,
-    manifestUrl: getUpdateManifestUrl_(ss),
-    serviceUrl: String(settings['WebアプリURL'] || ScriptApp.getService().getUrl() || ''),
-    deploymentId: String(settings['WebアプリデプロイID'] || ''),
-    scriptId: ScriptApp.getScriptId(),
     lastChecked: settings['最終更新確認日時'] || '',
     lastVersion: settings['最終更新バージョン'] || APP_VERSION
   };
 }
 
 function getAppVersionForReload(pin) {
-  assertAdmin_(pin);
-  return {version:APP_VERSION};
+  // v6.2.0以前の画面から更新した場合も、HTML本体が配信可能になるまで再読み込みさせません。
+  const readiness = getWebAppReadiness(APP_VERSION);
+  return {version:readiness.ready ? APP_VERSION : '', ready:readiness.ready};
+}
+
+function getWebAppReadiness(targetVersion) {
+  const ss = getSS_();
+  const settings = getSettings_(ss);
+  const serviceUrl = String(settings['WebアプリURL'] || ScriptApp.getService().getUrl() || '').trim();
+  if (!serviceUrl) return {ready:false, status:0, serviceUrl:''};
+  const checkUrl = serviceUrl + (serviceUrl.indexOf('?') >= 0 ? '&' : '?') + '__ready=' + Date.now();
+  try {
+    const response = UrlFetchApp.fetch(checkUrl, {muteHttpExceptions:true, followRedirects:true});
+    const body = response.getContentText();
+    const marker = 'data-app-version="' + String(targetVersion || '') + '"';
+    return {ready:response.getResponseCode() === 200 && body.indexOf(marker) >= 0, status:response.getResponseCode(), serviceUrl:serviceUrl};
+  } catch (e) {
+    return {ready:false, status:0, serviceUrl:serviceUrl};
+  }
 }
 
 function saveUpdateManifestUrl(payload) {
@@ -644,9 +658,8 @@ function saveUpdateManifestUrl(payload) {
 }
 
 function checkForAppUpdate(pin) {
-  assertAdmin_(pin);
   const ss = getSS_();
-  const url = getUpdateManifestUrl_(ss);
+  const url = DEFAULT_UPDATE_MANIFEST_URL;
   const manifest = fetchJson_(url, '更新マニフェスト');
   validateReleaseManifest_(manifest);
   const hasUpdate = compareVersions_(String(manifest.version), APP_VERSION) > 0;
@@ -664,15 +677,10 @@ function checkForAppUpdate(pin) {
 }
 
 function applyAppUpdate(payload) {
-  assertAdmin_(payload && payload.pin);
   const ss = getSS_();
   const settings = getSettings_(ss);
-  const requestedManifestUrl = String((payload && payload.manifestUrl) || '').trim();
-  if (requestedManifestUrl && !/^https:\/\//i.test(requestedManifestUrl)) {
-    throw new Error('更新マニフェストURLは https:// から始まるURLを設定してください。');
-  }
-  // 更新ボタンを押した時点の入力値を最優先し、コード差し替え前に必ず永続化します。
-  const manifestUrl = persistUpdateManifestUrl_(ss, requestedManifestUrl || getUpdateManifestUrl_(ss));
+  // 発注者向け更新では、任意コードの取り込みを防ぐため正式なGitHub更新元だけを使用します。
+  const manifestUrl = persistUpdateManifestUrl_(ss, DEFAULT_UPDATE_MANIFEST_URL);
 
   const manifest = fetchJson_(manifestUrl, '更新マニフェスト');
   validateReleaseManifest_(manifest);
