@@ -1,6 +1,6 @@
 {
-  "version": "6.6.2",
+  "version": "6.6.3",
   "publishedAt": "2026-09-02",
-  "notes": "商品マスターに折りたたみ表示を追加しました。発注ページと商品画像が登録済みの商品は初期状態で閉じ、登録状況をバッジで確認できます。すべて開く・すべて閉じる操作にも対応しました。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.2.json"
+  "notes": "システム更新画面の現在バージョン表示を改善し、読み込み中のまま残らないようにしました。あわせて、手配済み登録時に「売り切れのため変更」「送料を考慮して数量変更」を選べる手配内容メモを追加し、店舗側の履歴でも確認できるようにしました。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.3.json"
 }
