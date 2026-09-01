@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.6.3';
+const APP_VERSION = '6.6.4';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -86,8 +86,9 @@ function setup() {
 
   const products = getOrCreateSheet_(ss, SHEETS.PRODUCTS);
   products.clear();
-  products.getRange(1,1,1,15).setValues([['商品ID','カテゴリ','商品名','在庫単位','最低在庫','推奨発注数（購入単位）','発注数ステップ','有効','仕入先','発注ページURL','商品画像URL','商品メモ','1発注あたり数量','発注単位名','対象外店舗']]);
+  products.getRange(1,1,1,16).setValues([['商品ID','カテゴリ','商品名','在庫単位','最低在庫','推奨発注数（購入単位）','発注数ステップ','有効','仕入先','発注ページURL','商品画像URL','商品メモ','1発注あたり数量','発注単位名','対象外店舗','表示順']]);
   products.getRange(2,1,productRows.length,14).setValues(productRows);
+  products.getRange(2,16,productRows.length,1).setValues(productRows.map(function(_, index){return [index + 1];}));
   products.setFrozenRows(1);
 
   const settings = getOrCreateSheet_(ss, SHEETS.SETTINGS);
@@ -307,6 +308,24 @@ function ensureProductStoreExclusionColumn_(ss) {
   if (String(sheet.getRange(1,15).getValue() || '').trim() !== '対象外店舗') {
     sheet.getRange(1,15).setValue('対象外店舗');
   }
+}
+
+// 既存の行順を初期表示順として保存し、以後は商品行を動かさずに表示順だけを管理します。
+function ensureProductDisplayOrderColumn_(ss) {
+  var sheet = ss.getSheetByName(SHEETS.PRODUCTS);
+  if (!sheet) return;
+  if (String(sheet.getRange(1,16).getValue() || '').trim() !== '表示順') sheet.getRange(1,16).setValue('表示順');
+  var count = Math.max(0, sheet.getLastRow() - 1);
+  if (!count) return;
+  var values = sheet.getRange(2,16,count,1).getValues();
+  var changed = false;
+  for (var i = 0; i < values.length; i++) {
+    if (!(Number(values[i][0]) > 0)) {
+      values[i][0] = i + 1;
+      changed = true;
+    }
+  }
+  if (changed) sheet.getRange(2,16,count,1).setValues(values);
 }
 
 function parseExcludedStores_(value) {
@@ -573,6 +592,7 @@ function getProductAdminMaster(pin) {
   var ss = getSS_();
   ensureV6_4_0Products_(ss);
   ensureProductStoreExclusionColumn_(ss);
+  ensureProductDisplayOrderColumn_(ss);
   return getAllProducts_(ss);
 }
 
@@ -603,7 +623,8 @@ function addProduct(payload) {
     if (m) maxNo = Math.max(maxNo, Number(m[1]) || 0);
   }
   var id = 'P' + Utilities.formatString('%03d', maxNo + 1);
-  sheet.appendRow([id, category, name, unit, minStock, suggestedQty, orderUnit, true, '', '', '', '', packQty, orderUnitName, '']);
+  ensureProductDisplayOrderColumn_(ss);
+  sheet.appendRow([id, category, name, unit, minStock, suggestedQty, orderUnit, true, '', '', '', '', packQty, orderUnitName, '', all.length + 1]);
   return {ok:true, productId:id};
 }
 
@@ -656,10 +677,34 @@ function updateProductMaster(payload) {
   return {ok:true};
 }
 
+function updateProductDisplayOrder(payload) {
+  assertAdmin_(payload && payload.pin);
+  var order = payload && Array.isArray(payload.productIds) ? payload.productIds.map(function(id){return String(id || '').trim();}).filter(Boolean) : [];
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(10000);
+  try {
+    var ss = getSS_();
+    ensureProductDisplayOrderColumn_(ss);
+    var sheet = ss.getSheetByName(SHEETS.PRODUCTS);
+    var rows = sheet.getLastRow() > 1 ? sheet.getRange(2,1,sheet.getLastRow()-1,1).getValues().map(function(r){return String(r[0] || '').trim();}).filter(Boolean) : [];
+    if (order.length !== rows.length || order.some(function(id){return rows.indexOf(id) < 0;}) || (new Set(order)).size !== order.length) {
+      throw new Error('商品一覧が更新されています。画面を更新してから並び順を保存してください。');
+    }
+    var positionById = {};
+    for (var i = 0; i < order.length; i++) positionById[order[i]] = i + 1;
+    sheet.getRange(2,16,rows.length,1).setValues(rows.map(function(id){return [positionById[id]];}));
+    SpreadsheetApp.flush();
+    return {ok:true};
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function getAllProducts_(ss) {
+  ensureProductDisplayOrderColumn_(ss);
   var sheet = ss.getSheetByName(SHEETS.PRODUCTS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  var cols = Math.max(15, sheet.getLastColumn());
+  var cols = Math.max(16, sheet.getLastColumn());
   var values = sheet.getRange(2,1,sheet.getLastRow()-1,cols).getValues();
   var out = [];
   for (var i = 0; i < values.length; i++) {
@@ -671,10 +716,10 @@ function getAllProducts_(ss) {
       active:(r[7]===true || String(r[7]).toUpperCase()==='TRUE'),
       supplier:r[8]||'', orderUrl:r[9]||'', imageUrl:r[10]||'', productMemo:r[11]||'',
       packQty:Number(r[12])||1, orderUnitName:r[13]||r[3]||'',
-      excludedStores:parseExcludedStores_(r[14])
+      excludedStores:parseExcludedStores_(r[14]), displayOrder:Number(r[15]) || (i + 1)
     });
   }
-  return out;
+  return out.sort(function(a,b){return a.displayOrder - b.displayOrder;});
 }
 
 function getSupplierMaster(pin) {
@@ -1017,14 +1062,16 @@ function assertAdmin_(pin) {
 }
 
 function getProducts_(ss, store) {
+  ensureProductDisplayOrderColumn_(ss);
   const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  const cols = Math.max(15, sheet.getLastColumn());
+  const cols = Math.max(16, sheet.getLastColumn());
   const normalizedStore = String(store || '').trim();
   return sheet.getRange(2,1,sheet.getLastRow()-1,cols).getValues()
     .filter(r => r[7] === true || String(r[7]).toUpperCase() === 'TRUE')
-    .map(r => ({id:r[0],category:r[1],name:r[2],unit:r[3],minStock:Number(r[4])||0,suggestedQty:Number(r[5])||1,orderUnit:Number(r[6])||1,supplier:r[8]||'',orderUrl:r[9]||'',imageUrl:r[10]||'',productMemo:r[11]||'',packQty:Number(r[12])||1,orderUnitName:r[13]||r[3]||'',excludedStores:parseExcludedStores_(r[14])}))
-    .filter(function(p){return !normalizedStore || p.excludedStores.indexOf(normalizedStore) < 0;});
+    .map((r,index) => ({id:r[0],category:r[1],name:r[2],unit:r[3],minStock:Number(r[4])||0,suggestedQty:Number(r[5])||1,orderUnit:Number(r[6])||1,supplier:r[8]||'',orderUrl:r[9]||'',imageUrl:r[10]||'',productMemo:r[11]||'',packQty:Number(r[12])||1,orderUnitName:r[13]||r[3]||'',excludedStores:parseExcludedStores_(r[14]),displayOrder:Number(r[15])||(index+1)}))
+    .filter(function(p){return !normalizedStore || p.excludedStores.indexOf(normalizedStore) < 0;})
+    .sort(function(a,b){return a.displayOrder-b.displayOrder;});
 }
 
 
