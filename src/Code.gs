@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.3';
+const APP_VERSION = '6.1.4';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -336,7 +336,8 @@ function getHeadOfficeOrders(pin) {
   getProducts_(ss).forEach(p => products[p.id] = p);
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  const rows = sheet.getRange(2,1,sheet.getLastRow()-1,11).getValues();
+  ensureOrdersDeliveryColumns_(sheet);
+  const rows = sheet.getRange(2,1,sheet.getLastRow()-1,13).getValues();
   return rows.slice().reverse().map((r,revIdx) => {
     const p = products[r[4]] || {};
     return {
@@ -344,6 +345,7 @@ function getHeadOfficeOrders(pin) {
       orderId:r[0],
       date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
       store:r[2], user:r[3], productId:r[4], productName:r[5], qty:r[6], unit:r[7], status:r[8], note:r[10],
+      deliveryFrom:formatDateInputValue_(r[11]), deliveryTo:formatDateInputValue_(r[12]),
       supplier:p.supplier || '', orderUrl:p.orderUrl || '', imageUrl:p.imageUrl || '', productMemo:p.productMemo || '', packQty:p.packQty || 1, stockUnit:p.unit || '', orderUnitName:p.orderUnitName || p.unit || ''
     };
   });
@@ -351,14 +353,37 @@ function getHeadOfficeOrders(pin) {
 
 function updateOrderLineStatus(payload) {
   assertAdmin_(payload && payload.pin);
-  const allowed = ['発注依頼','手配済み','納品済み'];
+  const allowed = ['発注依頼','手配済み'];
   if (!payload || !allowed.includes(payload.status)) throw new Error('不正な状態です。');
   const ss = getSS_();
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
+  ensureOrdersDeliveryColumns_(sheet);
   const row = Number(payload.rowNumber);
   if (!row || row < 2 || row > sheet.getLastRow()) throw new Error('対象行が見つかりません。');
+  if (payload.status === '手配済み') {
+    const deliveryFrom = String(payload.deliveryFrom || '').trim();
+    const deliveryTo = String(payload.deliveryTo || deliveryFrom).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryTo)) {
+      throw new Error('納品予定日を入力してください。');
+    }
+    if (deliveryTo < deliveryFrom) throw new Error('納品予定の終了日は開始日以降にしてください。');
+    sheet.getRange(row,12,1,2).setValues([[deliveryFrom,deliveryTo]]);
+  }
   sheet.getRange(row,9).setValue(payload.status);
   return {ok:true};
+}
+
+function ensureOrdersDeliveryColumns_(sheet) {
+  if (!sheet) throw new Error('Ordersシートが見つかりません。');
+  if (!sheet.getRange(1,12).getValue()) sheet.getRange(1,12).setValue('納品予定開始日');
+  if (!sheet.getRange(1,13).getValue()) sheet.getRange(1,13).setValue('納品予定終了日');
+}
+
+function formatDateInputValue_(value) {
+  if (value instanceof Date) return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  return match ? match[1] + '-' + ('0' + match[2]).slice(-2) + '-' + ('0' + match[3]).slice(-2) : text;
 }
 
 
