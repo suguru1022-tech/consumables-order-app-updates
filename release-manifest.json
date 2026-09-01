@@ -1,6 +1,6 @@
 {
-  "version": "6.6.4",
+  "version": "6.6.5",
   "publishedAt": "2026-09-02",
-  "notes": "商品マスターの並び順をドラッグ＆ドロップで変更できるようにしました。保存後は店舗の在庫・発注画面と印刷チェックリストへも同じ順番で反映されます。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.4.json"
+  "notes": "初回表示時の重複した商品読み込みをなくし、商品情報と店舗別在庫の短時間キャッシュを追加しました。保存・発注・商品編集の直後はキャッシュを自動更新するため、最新の内容が表示されます。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.5.json"
 }
