@@ -5,11 +5,15 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.6.4';
+const APP_VERSION = '6.6.5';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
 const V6_4_0_PRODUCT_MIGRATION_KEY = '商品マスター移行_v6.4.0';
+const APP_CACHE_KEYS = {
+  PRODUCTS: 'consumables_products_v1',
+  INVENTORY_PREFIX: 'consumables_inventory_v1_'
+};
 const V6_4_0_PRODUCTS = [
   ['梱包用品','OPP袋（4枚セット用）'],
   ['オリパ用品','ブロックオリパ用袋（100枚セット用）'],
@@ -336,18 +340,20 @@ function getInitialData() {
   const ss = getSS_();
   ensureV6_4_0Products_(ss);
   ensureProductStoreExclusionColumn_(ss);
+  ensureProductDisplayOrderColumn_(ss);
   const settings = getSettings_(ss);
   return {
     appName: settings['管理アプリ名'] || '消耗品管理・発注',
-    stores: (settings['店舗一覧'] || '').split(',').map(s => s.trim()).filter(Boolean),
-    products: getProducts_(ss)
+    stores: (settings['店舗一覧'] || '').split(',').map(s => s.trim()).filter(Boolean)
   };
 }
 
 function getInventory(store) {
   const ss = getSS_();
-  ensureProductStoreExclusionColumn_(ss);
   const normalizedStore = String(store || '').trim();
+  const cacheKey = APP_CACHE_KEYS.INVENTORY_PREFIX + encodeURIComponent(normalizedStore);
+  const cached = getCachedJson_(cacheKey);
+  if (cached) return cached;
   const products = getProducts_(ss, normalizedStore);
   const sheet = ss.getSheetByName(SHEETS.INVENTORY);
   const values = sheet && sheet.getLastRow() > 1 ? sheet.getRange(2,1,sheet.getLastRow()-1,6).getValues() : [];
@@ -372,7 +378,7 @@ function getInventory(store) {
     }
   });
 
-  return products.map(function(p) {
+  const result = products.map(function(p) {
     const last = lastOrders[p.id] || null;
     return {
       ...p,
@@ -382,6 +388,8 @@ function getInventory(store) {
       lastOrderUnit:last ? last.unit : ''
     };
   });
+  putCachedJson_(cacheKey, result, 60);
+  return result;
 }
 
 function saveInventoryItem(payload) {
@@ -393,6 +401,7 @@ function saveInventoryItem(payload) {
   const sheet = ss.getSheetByName(SHEETS.INVENTORY);
   if (!sheet) throw new Error('Inventoryシートが見つかりません。');
   sheet.appendRow([new Date(),payload.store,payload.productId,payload.productName||'',Number(payload.currentStock)||0,payload.user||'']);
+  clearInventoryCache_(payload.store);
   return {ok:true};
 }
 
@@ -417,6 +426,7 @@ function submitOrder(payload) {
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
   const rows = payload.items.map(i => [orderId,now,payload.store,payload.user||'',i.productId,i.productName,Number(i.orderQty)||0,i.orderUnitName||i.unit||'','発注依頼',recipient,payload.note||'']);
   sheet.getRange(sheet.getLastRow()+1,1,rows.length,11).setValues(rows);
+  clearInventoryCache_(payload.store);
 
   const subject = `${settings['メール件名接頭辞'] || '【消耗品発注依頼】'}${payload.store}`;
   const lines = [`${payload.store}から消耗品の発注依頼です。`,'',`発注ID：${orderId}`,`発注者：${payload.user || '未入力'}`,`発注日時：${Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm')}`,'','【発注内容】'];
@@ -486,6 +496,7 @@ function cancelOrderLine(payload) {
     }
     sheet.getRange(row,9).setValue('キャンセル');
     SpreadsheetApp.flush();
+    clearInventoryCache_(store);
     return {ok:true, status:'キャンセル'};
   } finally {
     lock.releaseLock();
@@ -555,6 +566,7 @@ function updateOrderLineStatus(payload) {
     }
     sheet.getRange(row,9).setValue(payload.status);
     SpreadsheetApp.flush();
+    clearInventoryCache_(sheet.getRange(row,3).getValue());
     return {ok:true};
   } finally {
     lock.releaseLock();
@@ -625,6 +637,7 @@ function addProduct(payload) {
   var id = 'P' + Utilities.formatString('%03d', maxNo + 1);
   ensureProductDisplayOrderColumn_(ss);
   sheet.appendRow([id, category, name, unit, minStock, suggestedQty, orderUnit, true, '', '', '', '', packQty, orderUnitName, '', all.length + 1]);
+  clearProductCache_();
   return {ok:true, productId:id};
 }
 
@@ -674,6 +687,7 @@ function updateProductMaster(payload) {
     }
     sheet.getRange(rowNo,15).setValue(excludedStores.join(','));
   }
+  clearProductCache_();
   return {ok:true};
 }
 
@@ -694,6 +708,7 @@ function updateProductDisplayOrder(payload) {
     for (var i = 0; i < order.length; i++) positionById[order[i]] = i + 1;
     sheet.getRange(2,16,rows.length,1).setValues(rows.map(function(id){return [positionById[id]];}));
     SpreadsheetApp.flush();
+    clearProductCache_();
     return {ok:true};
   } finally {
     lock.releaseLock();
@@ -701,7 +716,8 @@ function updateProductDisplayOrder(payload) {
 }
 
 function getAllProducts_(ss) {
-  ensureProductDisplayOrderColumn_(ss);
+  const cached = getCachedJson_(APP_CACHE_KEYS.PRODUCTS);
+  if (cached) return cached;
   var sheet = ss.getSheetByName(SHEETS.PRODUCTS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
   var cols = Math.max(16, sheet.getLastColumn());
@@ -719,7 +735,9 @@ function getAllProducts_(ss) {
       excludedStores:parseExcludedStores_(r[14]), displayOrder:Number(r[15]) || (i + 1)
     });
   }
-  return out.sort(function(a,b){return a.displayOrder - b.displayOrder;});
+  out.sort(function(a,b){return a.displayOrder - b.displayOrder;});
+  putCachedJson_(APP_CACHE_KEYS.PRODUCTS, out, 60);
+  return out;
 }
 
 function getSupplierMaster(pin) {
@@ -740,6 +758,7 @@ function saveSupplierLink(payload) {
   const idx = rows.findIndex(r => r[0] === payload.productId);
   if (idx < 0) throw new Error('商品が見つかりません。');
   sheet.getRange(idx+2,9,1,4).setValues([[String(payload.supplier||'').trim(),url,imageUrl,String(payload.productMemo||'').trim()]]);
+  clearProductCache_();
   return {ok:true};
 }
 
@@ -770,6 +789,7 @@ function uploadProductImage(payload) {
   const idx = rows.findIndex(r => r[0] === payload.productId);
   if (idx < 0) throw new Error('商品が見つかりません。');
   sheet.getRange(idx+2,11).setValue(imageUrl);
+  clearProductCache_();
   return {ok:true, imageUrl, fileId:file.getId()};
 }
 
@@ -1061,15 +1081,43 @@ function assertAdmin_(pin) {
   if (!expected || String(pin || '') !== expected) throw new Error('本部管理PINが違います。');
 }
 
+function getCachedJson_(key) {
+  try {
+    const text = CacheService.getScriptCache().get(key);
+    return text ? JSON.parse(text) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function putCachedJson_(key, value, seconds) {
+  try {
+    CacheService.getScriptCache().put(key, JSON.stringify(value), seconds);
+  } catch (e) {
+    // キャッシュの容量超過時も、通常のシート読み込みを継続します。
+  }
+}
+
+function clearInventoryCache_(store) {
+  try {
+    CacheService.getScriptCache().remove(APP_CACHE_KEYS.INVENTORY_PREFIX + encodeURIComponent(String(store || '').trim()));
+  } catch (e) {}
+}
+
+function clearProductCache_() {
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove(APP_CACHE_KEYS.PRODUCTS);
+    const settings = getSettings_(getSS_());
+    const stores = String(settings['店舗一覧'] || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    for (var i = 0; i < stores.length; i++) cache.remove(APP_CACHE_KEYS.INVENTORY_PREFIX + encodeURIComponent(stores[i]));
+  } catch (e) {}
+}
+
 function getProducts_(ss, store) {
-  ensureProductDisplayOrderColumn_(ss);
-  const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
-  if (!sheet || sheet.getLastRow() <= 1) return [];
-  const cols = Math.max(16, sheet.getLastColumn());
   const normalizedStore = String(store || '').trim();
-  return sheet.getRange(2,1,sheet.getLastRow()-1,cols).getValues()
-    .filter(r => r[7] === true || String(r[7]).toUpperCase() === 'TRUE')
-    .map((r,index) => ({id:r[0],category:r[1],name:r[2],unit:r[3],minStock:Number(r[4])||0,suggestedQty:Number(r[5])||1,orderUnit:Number(r[6])||1,supplier:r[8]||'',orderUrl:r[9]||'',imageUrl:r[10]||'',productMemo:r[11]||'',packQty:Number(r[12])||1,orderUnitName:r[13]||r[3]||'',excludedStores:parseExcludedStores_(r[14]),displayOrder:Number(r[15])||(index+1)}))
+  return getAllProducts_(ss)
+    .filter(function(p){return p.active;})
     .filter(function(p){return !normalizedStore || p.excludedStores.indexOf(normalizedStore) < 0;})
     .sort(function(a,b){return a.displayOrder-b.displayOrder;});
 }
