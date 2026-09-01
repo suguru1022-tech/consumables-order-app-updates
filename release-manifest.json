@@ -1,6 +1,6 @@
 {
-  "version": "6.6.7",
+  "version": "6.6.8",
   "publishedAt": "2026-09-02",
-  "notes": "担当者名を店舗ごとの選択式にしました。初回だけ新規登録し、以後はタップで選択できます。誤登録は担当者を編集から削除でき、過去の発注履歴には影響しません。担当者が未選択の発注依頼は送信できません。あわせてシステム更新の確認ポップアップ削除、赤い更新ボタン、反映確認の短縮と白画面を避ける再読み込み導線を追加しました。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.7.json"
+  "notes": "システム更新を店舗側の通常タブから外し、本部発注のPIN認証後にだけ表示される管理タブへ移動しました。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.8.json"
 }
