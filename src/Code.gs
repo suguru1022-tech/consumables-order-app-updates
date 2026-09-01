@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.7';
+const APP_VERSION = '6.1.8';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -310,10 +310,14 @@ function getOrderHistory(store) {
   const values = sheet.getRange(2,1,sheet.getLastRow()-1,13).getValues();
   const normalizedStore = String(store || '').trim();
   return values
-    .filter(r => !normalizedStore || String(r[2] || '').trim() === normalizedStore)
+    .map((r, index) => ({row:r, rowNumber:index + 2}))
+    .filter(item => !normalizedStore || String(item.row[2] || '').trim() === normalizedStore)
     .slice(-100)
     .reverse()
-    .map(r => ({
+    .map(item => {
+      const r = item.row;
+      return {
+      rowNumber:item.rowNumber,
       orderId:r[0],
       date:formatDateTimeJa_(r[1]),
       store:String(r[2] || '').trim(),
@@ -324,7 +328,34 @@ function getOrderHistory(store) {
       status:r[8],
       deliveryFrom:formatDateInputValue_(r[11]),
       deliveryTo:formatDateInputValue_(r[12])
-    }));
+    };
+    });
+}
+
+function cancelOrderLine(payload) {
+  const row = Number(payload && payload.rowNumber);
+  const store = String((payload && payload.store) || '').trim();
+  const orderId = String((payload && payload.orderId) || '').trim();
+  if (!row || row < 2 || !store || !orderId) throw new Error('取り下げ対象を確認できません。');
+
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getSS_().getSheetByName(SHEETS.ORDERS);
+    if (!sheet || row > sheet.getLastRow()) throw new Error('対象の発注依頼が見つかりません。');
+    const values = sheet.getRange(row,1,1,9).getValues()[0];
+    if (String(values[0] || '').trim() !== orderId || String(values[2] || '').trim() !== store) {
+      throw new Error('対象の発注依頼が一致しません。履歴を再読み込みしてください。');
+    }
+    if (String(values[8] || '').trim() !== '発注依頼') {
+      throw new Error('この発注はすでに処理されているため取り下げできません。');
+    }
+    sheet.getRange(row,9).setValue('キャンセル');
+    SpreadsheetApp.flush();
+    return {ok:true, status:'キャンセル'};
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function verifyAdminPin(pin) {
@@ -341,10 +372,11 @@ function getHeadOfficeOrders(pin) {
   if (!sheet || sheet.getLastRow() <= 1) return [];
   ensureOrdersDeliveryColumns_(sheet);
   const rows = sheet.getRange(2,1,sheet.getLastRow()-1,13).getValues();
-  return rows.slice().reverse().map((r,revIdx) => {
+  return rows.map((r,index) => ({row:r,rowNumber:index + 2})).reverse().filter(item => String(item.row[8] || '').trim() !== 'キャンセル').map(item => {
+    const r = item.row;
     const p = products[r[4]] || {};
     return {
-      rowNumber: sheet.getLastRow() - revIdx,
+      rowNumber:item.rowNumber,
       orderId:r[0],
       date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
       store:r[2], user:r[3], productId:r[4], productName:r[5], qty:r[6], unit:r[7], status:r[8], note:r[10],
@@ -358,22 +390,33 @@ function updateOrderLineStatus(payload) {
   assertAdmin_(payload && payload.pin);
   const allowed = ['発注依頼','手配済み'];
   if (!payload || !allowed.includes(payload.status)) throw new Error('不正な状態です。');
-  const ss = getSS_();
-  const sheet = ss.getSheetByName(SHEETS.ORDERS);
-  ensureOrdersDeliveryColumns_(sheet);
   const row = Number(payload.rowNumber);
-  if (!row || row < 2 || row > sheet.getLastRow()) throw new Error('対象行が見つかりません。');
-  if (payload.status === '手配済み') {
-    const deliveryFrom = String(payload.deliveryFrom || '').trim();
-    const deliveryTo = String(payload.deliveryTo || deliveryFrom).trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryTo)) {
-      throw new Error('納品予定日を入力してください。');
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(10000);
+  try {
+    const ss = getSS_();
+    const sheet = ss.getSheetByName(SHEETS.ORDERS);
+    ensureOrdersDeliveryColumns_(sheet);
+    if (!row || row < 2 || row > sheet.getLastRow()) throw new Error('対象行が見つかりません。');
+    const currentStatus = String(sheet.getRange(row,9).getValue() || '').trim();
+    if (payload.status === '手配済み' && currentStatus !== '発注依頼') {
+      throw new Error('この発注はすでに処理済みか、取り下げられています。画面を更新してください。');
     }
-    if (deliveryTo < deliveryFrom) throw new Error('納品予定の終了日は開始日以降にしてください。');
-    sheet.getRange(row,12,1,2).setValues([[deliveryFrom,deliveryTo]]);
+    if (payload.status === '手配済み') {
+      const deliveryFrom = String(payload.deliveryFrom || '').trim();
+      const deliveryTo = String(payload.deliveryTo || deliveryFrom).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryTo)) {
+        throw new Error('納品予定日を入力してください。');
+      }
+      if (deliveryTo < deliveryFrom) throw new Error('納品予定の終了日は開始日以降にしてください。');
+      sheet.getRange(row,12,1,2).setValues([[deliveryFrom,deliveryTo]]);
+    }
+    sheet.getRange(row,9).setValue(payload.status);
+    SpreadsheetApp.flush();
+    return {ok:true};
+  } finally {
+    lock.releaseLock();
   }
-  sheet.getRange(row,9).setValue(payload.status);
-  return {ok:true};
 }
 
 function ensureOrdersDeliveryColumns_(sheet) {
