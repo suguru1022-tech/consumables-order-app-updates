@@ -288,15 +288,28 @@ function applySystemUpdate(btn){
   setButtonBusy(btn,true,'更新中…');
   google.script.run
     .withSuccessHandler(function(r){
-      setButtonBusy(btn,false);
       byId('updateManifestUrl').value=manifestUrl;
       byId('applyUpdateBtn').style.display='none';
       var box=byId('updateResult');
       box.style.display='block';
-      box.innerHTML='<strong>更新完了</strong><br>v'+esc(r.version||'')+' へ更新しました。'+
-        (r.backupFileName?'<br>バックアップ：'+esc(r.backupFileName):'')+
-        '<br><br>数秒待ってからこのページを再読み込みしてください。';
+      var seconds=5;
+      function renderReloadCountdown(){
+        box.innerHTML='<strong>更新完了</strong><br>v'+esc(r.version||'')+' へ更新しました。'+
+          (r.backupFileName?'<br>バックアップ：'+esc(r.backupFileName):'')+
+          '<br><br><strong>'+seconds+'秒後に自動で再読み込みします。</strong>';
+      }
+      renderReloadCountdown();
       showMsg(r.message||'最新版への更新が完了しました。','success');
+      var reloadTimer=setInterval(function(){
+        seconds--;
+        if(seconds<=0){
+          clearInterval(reloadTimer);
+          box.innerHTML='<strong>再読み込み中…</strong>';
+          window.location.reload();
+          return;
+        }
+        renderReloadCountdown();
+      },1000);
     })
     .withFailureHandler(function(e){
       setButtonBusy(btn,false);
