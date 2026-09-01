@@ -49,6 +49,9 @@ button:not(:disabled):active,.linkbtn:not(.disabled):active{transform:scale(.97)
 @media(max-width:410px){.stockrow{grid-template-columns:1fr}.stockrow>.secondary{grid-column:auto}.stock-panel,.order-panel{padding:10px 11px}}
 
 .admin-add-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.master-row{border:1px solid #dfe3e8;border-radius:12px;padding:16px;margin-top:14px;background:#fafbfc;box-shadow:0 2px 7px rgba(24,39,58,.06)}.master-grid{display:grid;grid-template-columns:1.2fr 2fr .8fr .8fr .8fr .8fr;gap:8px;align-items:end}.master-supplier-section{margin-top:14px;padding-top:13px;border-top:1px solid #dfe3e8}.master-section-title{font-size:14px;font-weight:700;color:#425466;margin-bottom:8px}.master-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.inactive{opacity:.55}.danger{background:#fff;border:1px solid #c62828;color:#c62828}@media(max-width:760px){.admin-add-grid,.master-grid{grid-template-columns:1fr 1fr}}
+.inventory-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.inventory-toolbar .muted{margin:0}.print-sheet{display:none}.print-sheet h1{font-size:22px;margin:0 0 12px}.print-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}.print-meta-item{border-bottom:1px solid #222;padding:4px 2px;min-height:28px}.print-table{width:100%;border-collapse:collapse;font-size:11px}.print-table th,.print-table td{border:1px solid #333;padding:5px 6px;vertical-align:middle}.print-table th{background:#e9ecef}.print-category td{background:#dfe3e8;font-weight:700;font-size:12px}.print-check{width:28px;text-align:center}.print-box{display:inline-block;width:14px;height:14px;border:1.5px solid #111}.print-number{width:74px;height:24px}.print-note{font-size:10px;margin-top:10px}.print-button{white-space:nowrap}
+@page{size:A4 portrait;margin:10mm}
+@media print{body{background:#fff;color:#000}body>*:not(#inventoryPrintSheet){display:none!important}#inventoryPrintSheet{display:block!important}.print-sheet{font-family:Arial,'Noto Sans JP',sans-serif}.print-table tr{break-inside:avoid}.print-category{break-after:avoid}}
 </style>
 </head>
 <body>
@@ -58,7 +61,7 @@ button:not(:disabled):active,.linkbtn:not(.disabled):active{transform:scale(.97)
 <div id="msg" class="toast-host" aria-live="polite"></div>
 <div class="card row"><div><label>店舗</label><select id="store" onchange="onStoreChange()"></select></div><div><label>担当者名</label><input id="user" placeholder="例：松田"></div></div>
 <div class="tabs"><button class="tab active" onclick="showTab('inventory',this)">在庫・発注</button><button id="cartTabButton" class="tab" onclick="showTab('cart',this)">発注リスト <span id="cartCount" class="pending-count" style="display:none">0</span></button><button class="tab" onclick="showTab('history',this);loadHistory()">履歴</button><button class="tab" onclick="showTab('system',this);loadSystemUpdateInfo(null)">システム更新</button><button class="tab" onclick="showTab('hq',this);openHQ()">本部発注</button></div>
-<section id="inventoryTab" class="card"><div class="muted" style="margin-bottom:12px">現在庫は入力後、自動保存されます。</div><div id="products">読込中...</div></section>
+<section id="inventoryTab" class="card"><div class="inventory-toolbar"><div class="muted">現在庫は入力後、自動保存されます。</div><button class="secondary print-button" onclick="printInventoryChecklist(this)">在庫チェックリストを印刷</button></div><div id="products">読込中...</div></section>
 <section id="cartTab" class="card" style="display:none"><h3>発注内容</h3><div id="cartPendingBanner" class="cart-pending-banner" style="display:none"></div><div id="cart"></div><label style="margin-top:12px">備考</label><textarea id="note" rows="3"></textarea><button class="primary" style="margin-top:12px" onclick="submitOrder(this)">本部へ発注依頼を送る</button></section>
 <section id="historyTab" class="card" style="display:none"><h3>発注履歴</h3><div id="history" aria-live="polite"></div></section>
 <section id="systemTab" class="card" style="display:none">
@@ -86,6 +89,7 @@ button:not(:disabled):active,.linkbtn:not(.disabled):active{transform:scale(.97)
 </div>
 </section>
 </main>
+<div id="inventoryPrintSheet" class="print-sheet" aria-hidden="true"></div>
 <div id="numberPickerModal" class="wheel-modal" onclick="if(event.target===this)closeNumberPicker(false)"><div class="wheel-sheet"><div id="wheelTitle" class="wheel-title">数量を選択</div><div class="wheel-wrap"><div class="wheel-highlight"></div><div id="wheelList" class="wheel-list" onscroll="wheelScrolled()"></div></div><div class="wheel-actions"><button type="button" class="wheel-cancel" onclick="closeNumberPicker(false)">キャンセル</button><button type="button" class="wheel-ok" onclick="closeNumberPicker(true)">決定</button></div></div></div>
 <div id="imageModal" class="modal" onclick="if(event.target===this)closeImageModal()"><div class="modal-box"><div class="modal-head"><div><div id="modalProductName" class="pname"></div><div id="modalProductMemo" class="muted"></div></div><button class="modal-close" onclick="closeImageModal()">×</button></div><div id="modalImageArea"></div></div></div>
 <div id="orderConfirmModal" class="modal" onclick="if(event.target===this)closeOrderConfirm()"><div class="modal-box"><div class="modal-head"><h3 style="margin:0">発注店舗を確認</h3><button class="modal-close" onclick="closeOrderConfirm()">×</button></div><div class="confirm-store-label">発注する店舗</div><div id="confirmOrderStore" class="confirm-store"></div><div id="confirmOrderMessage" class="confirm-warning"></div><div class="confirm-actions"><button class="secondary" onclick="closeOrderConfirm()">戻って確認</button><button id="confirmOrderSendBtn" class="primary" onclick="confirmSubmitOrder()">この店舗で送信</button></div></div></div>
@@ -172,6 +176,32 @@ function renderProducts(){
   }
   byId('products').innerHTML=html||'<div class="muted">商品が登録されていません。</div>';
   if(isMobilePicker()){var nums=byId('products').querySelectorAll('.stepper input');for(var n=0;n<nums.length;n++){nums[n].readOnly=true;nums[n].setAttribute('inputmode','none');}}
+}
+function printInventoryChecklist(btn){
+  var store=byId('store').value;
+  if(!store){showMsg('印刷する店舗を選択してください。','error');byId('store').focus();return;}
+  if(!products.length){showMsg('商品一覧を読み込んでから印刷してください。','error');return;}
+  setButtonBusy(btn,true,'印刷準備中…');
+  var now=new Date();
+  var weekdays=['日','月','火','水','木','金','土'];
+  var date=now.getFullYear()+'/'+('0'+(now.getMonth()+1)).slice(-2)+'/'+('0'+now.getDate()).slice(-2)+'（'+weekdays[now.getDay()]+'）';
+  var html='<h1>消耗品 在庫チェックリスト</h1><div class="print-meta"><div class="print-meta-item"><strong>店舗：</strong>'+esc(store)+'</div><div class="print-meta-item"><strong>実施日：</strong>'+esc(date)+'</div><div class="print-meta-item"><strong>確認者：</strong></div></div><table class="print-table"><thead><tr><th class="print-check">確認</th><th>商品名</th><th>在庫単位</th><th>最低在庫</th><th>実在庫</th><th>要発注</th></tr></thead><tbody>';
+  var groups={},categoryOrder=[];
+  for(var i=0;i<products.length;i++){var category=products[i].category||'その他';if(!groups[category]){groups[category]=[];categoryOrder.push(category);}groups[category].push(products[i]);}
+  for(var c=0;c<categoryOrder.length;c++){
+    var categoryName=categoryOrder[c],items=groups[categoryName];
+    html+='<tr class="print-category"><td colspan="6">'+esc(categoryName)+'</td></tr>';
+    for(var j=0;j<items.length;j++){
+      var p=items[j];
+      html+='<tr><td class="print-check"><span class="print-box"></span></td><td>'+esc(p.name)+'</td><td>'+esc(p.unit||'個')+'</td><td>'+esc(p.minStock)+esc(p.unit||'個')+'</td><td class="print-number"></td><td class="print-check"><span class="print-box"></span></td></tr>';
+    }
+  }
+  html+='</tbody></table><div class="print-note">実在庫を数えて記入し、確認後にアプリの「現在庫」へ入力してください。最低在庫以下の商品は「要発注」にチェックしてください。</div>';
+  var sheet=byId('inventoryPrintSheet');
+  sheet.innerHTML=html;
+  sheet.setAttribute('aria-hidden','false');
+  setButtonBusy(btn,false);
+  window.setTimeout(function(){window.print();},100);
 }
 function objectIsEmpty(o){for(var k in o){if(o.hasOwnProperty(k))return false;}return true;}
 function toggleCat(btn){var box=btn.parentNode;var cat=box.getAttribute('data-cat');if(box.className.indexOf(' open')>=0){box.className=box.className.replace(' open','');delete openCategories[cat];}else{box.className+=' open';openCategories[cat]=true;}}
