@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.6.2';
+const APP_VERSION = '6.6.3';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -419,7 +419,7 @@ function getOrderHistory(store) {
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
   ensureOrdersDeliveryColumns_(sheet);
-  const values = sheet.getRange(2,1,sheet.getLastRow()-1,13).getValues();
+  const values = sheet.getRange(2,1,sheet.getLastRow()-1,16).getValues();
   const normalizedStore = String(store || '').trim();
   return values
     .map((r, index) => ({row:r, rowNumber:index + 2}))
@@ -439,7 +439,10 @@ function getOrderHistory(store) {
       unit:r[7],
       status:r[8],
       deliveryFrom:formatDateInputValue_(r[11]),
-      deliveryTo:formatDateInputValue_(r[12])
+      deliveryTo:formatDateInputValue_(r[12]),
+      arrangementType:String(r[13] || '').trim(),
+      arrangementNote:String(r[14] || '').trim(),
+      arrangementDetail:String(r[15] || '').trim()
     };
     });
 }
@@ -483,7 +486,7 @@ function getHeadOfficeOrders(pin) {
   const sheet = ss.getSheetByName(SHEETS.ORDERS);
   if (!sheet || sheet.getLastRow() <= 1) return [];
   ensureOrdersDeliveryColumns_(sheet);
-  const rows = sheet.getRange(2,1,sheet.getLastRow()-1,13).getValues();
+  const rows = sheet.getRange(2,1,sheet.getLastRow()-1,16).getValues();
   return rows.map((r,index) => ({row:r,rowNumber:index + 2})).reverse().filter(item => String(item.row[8] || '').trim() !== 'キャンセル').map(item => {
     const r = item.row;
     const p = products[r[4]] || {};
@@ -493,6 +496,7 @@ function getHeadOfficeOrders(pin) {
       date:r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm') : String(r[1] || ''),
       store:r[2], user:r[3], productId:r[4], productName:r[5], qty:r[6], unit:r[7], status:r[8], note:r[10],
       deliveryFrom:formatDateInputValue_(r[11]), deliveryTo:formatDateInputValue_(r[12]),
+      arrangementType:String(r[13] || '').trim(), arrangementNote:String(r[14] || '').trim(), arrangementDetail:String(r[15] || '').trim(),
       supplier:p.supplier || '', orderUrl:p.orderUrl || '', imageUrl:p.imageUrl || '', productMemo:p.productMemo || '', packQty:p.packQty || 1, stockUnit:p.unit || '', orderUnitName:p.orderUnitName || p.unit || ''
     };
   });
@@ -523,6 +527,12 @@ function updateOrderLineStatus(payload) {
       }
       if (!deliveryUndecided && deliveryTo < deliveryFrom) throw new Error('納品予定の終了日は開始日以降にしてください。');
       sheet.getRange(row,12,1,2).setValues([[deliveryUndecided ? '未確定' : deliveryFrom,deliveryUndecided ? '' : deliveryTo]]);
+      const arrangementType = String(payload.arrangementType || '').trim();
+      const allowedTypes = ['','売り切れのため代替商品へ変更','送料を考慮して数量を変更'];
+      if (!allowedTypes.includes(arrangementType)) throw new Error('手配内容が不正です。');
+      const arrangementNote = arrangementType ? '手配内容：' + arrangementType : '';
+      const arrangementDetail = String(payload.arrangementDetail || '').trim().slice(0,500);
+      sheet.getRange(row,14,1,3).setValues([[arrangementType,arrangementNote,arrangementDetail]]);
     }
     sheet.getRange(row,9).setValue(payload.status);
     SpreadsheetApp.flush();
@@ -536,6 +546,9 @@ function ensureOrdersDeliveryColumns_(sheet) {
   if (!sheet) throw new Error('Ordersシートが見つかりません。');
   if (!sheet.getRange(1,12).getValue()) sheet.getRange(1,12).setValue('納品予定開始日');
   if (!sheet.getRange(1,13).getValue()) sheet.getRange(1,13).setValue('納品予定終了日');
+  if (!sheet.getRange(1,14).getValue()) sheet.getRange(1,14).setValue('手配内容');
+  if (!sheet.getRange(1,15).getValue()) sheet.getRange(1,15).setValue('手配メモ');
+  if (!sheet.getRange(1,16).getValue()) sheet.getRange(1,16).setValue('手配補足');
 }
 
 function formatDateInputValue_(value) {
