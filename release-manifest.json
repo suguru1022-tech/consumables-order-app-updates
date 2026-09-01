@@ -1,6 +1,6 @@
 {
-  "version": "6.1.5",
+  "version": "6.1.6",
   "publishedAt": "2026-09-01",
-  "notes": "本部発注一覧を発注ごとのカード表示にして境界・状態色・余白を改善。店舗側の発注履歴にも登録済みの納品予定日または予定期間を表示",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.5.json"
+  "notes": "店舗側の発注履歴を商品ごとのカード表示に改善し、発注日を日本語の曜日付きで明示。発注番号・店舗・担当者・状態を項目別に整理",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.6.json"
 }
