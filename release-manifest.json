@@ -1,6 +1,6 @@
 {
-  "version": "6.1.4",
+  "version": "6.1.5",
   "publishedAt": "2026-09-01",
-  "notes": "本部発注の手配済み操作に処理中・完了フィードバックと二重押下防止を追加。納品済み操作を廃止し、手配時に納品予定日または予定期間を登録できるよう改善",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.4.json"
+  "notes": "本部発注一覧を発注ごとのカード表示にして境界・状態色・余白を改善。店舗側の発注履歴にも登録済みの納品予定日または予定期間を表示",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.5.json"
 }
