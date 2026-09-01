@@ -5,10 +5,37 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.3.0';
+const APP_VERSION = '6.4.0';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
+const V6_4_0_PRODUCT_MIGRATION_KEY = '商品マスター移行_v6.4.0';
+const V6_4_0_PRODUCTS = [
+  ['梱包用品','OPP袋（4枚セット用）'],
+  ['オリパ用品','ブロックオリパ用袋（100枚セット用）'],
+  ['オリパ用品','オリパ用紙袋'],
+  ['カード用品','ストレージ用ケース'],
+  ['ガチャ用品','ガチャ用白箱'],
+  ['会員用品','メンバーズカード'],
+  ['店舗備品','マイドテープ'],
+  ['事務用品','テプラテープ'],
+  ['事務用品','セロハンテープ'],
+  ['事務用品','A4ラミネートフィルム'],
+  ['事務用品','A3ラミネートフィルム'],
+  ['清掃用品','ゴミ袋'],
+  ['ガチャ用品','カプセルガチャ用平型ヒューズ'],
+  ['プリンター','プリンター用インク（稲沢）ブラック'],
+  ['プリンター','プリンター用インク（稲沢）マゼンタ'],
+  ['プリンター','プリンター用インク（稲沢）シアン'],
+  ['プリンター','プリンター用インク（稲沢）イエロー'],
+  ['プリンター','プリンター用インク（大須）ブラック'],
+  ['プリンター','プリンター用インク（大須）マゼンタ'],
+  ['プリンター','プリンター用インク（大須）シアン'],
+  ['プリンター','プリンター用インク（大須）イエロー'],
+  ['レンタルショーケース','レンタルショーケース管理番号シール'],
+  ['レンタルショーケース','レンタルショーケース価格シール'],
+  ['事務用品','コピー用紙 A3']
+];
 
 function doGet() {
   const template = HtmlService.createTemplateFromFile('Index');
@@ -29,7 +56,7 @@ function setup() {
     ['P004','袋','有料ショップ袋 Sサイズ','束',2,5,1,true,'','','','',1,'束'],
     ['P005','袋','有料ショップ袋 Mサイズ','束',2,5,1,true,'','','','',1,'束'],
     ['P006','袋','有料ショップ袋 Lサイズ','束',2,5,1,true,'','','','',1,'束'],
-    ['P007','事務用品','コピー用紙','箱',1,2,1,true,'','','','',1,'箱'],
+    ['P007','事務用品','コピー用紙 A4','箱',1,2,1,true,'','','','',1,'箱'],
     ['P008','カード用品','業務用スリーブ','箱',2,5,1,true,'','','','',1,'箱'],
     ['P009','カード用品','業務用ローダー','箱',2,5,1,true,'','','','',1,'箱'],
     ['P010','ラベル','POS専用ラベル','巻',2,5,1,true,'','','','',1,'巻'],
@@ -51,7 +78,10 @@ function setup() {
     ['P026','オリパ用品','オリパ用袋 緑','束',1,3,1,true,'','','','',1,'束'],
     ['P027','オリパ用品','オリパ用袋 オレンジ','束',1,3,1,true,'','','','',1,'束'],
     ['P028','PSA用品','PSA用オリパ袋','束',1,3,1,true,'','','','',1,'束'],
-    ['P029','PSA用品','PSA保護袋','束',1,3,1,true,'','','','',1,'束']
+    ['P029','PSA用品','PSA保護袋','束',1,3,1,true,'','','','',1,'束'],
+    ...V6_4_0_PRODUCTS.map(function(p, index) {
+      return ['P' + Utilities.formatString('%03d', 30 + index),p[0],p[1],'個',1,1,1,true,'','','','',1,'個'];
+    })
   ];
 
   const products = getOrCreateSheet_(ss, SHEETS.PRODUCTS);
@@ -219,8 +249,60 @@ function upgradeToV6_0_5() {
   return 'v6.0.5への更新が完了しました。WebアプリデプロイIDを固定登録しました：' + selected.deploymentId;
 }
 
+// v6.4.0の商品追加を既存データを消さずに1回だけ適用します。
+// 同名商品は追加せず、既存の「コピー用紙」だけを「コピー用紙 A4」へ安全に名称変更します。
+function ensureV6_4_0Products_(ss) {
+  var settings = ss.getSheetByName(SHEETS.SETTINGS);
+  var products = ss.getSheetByName(SHEETS.PRODUCTS);
+  if (!settings || !products) return;
+  var currentSettings = getSettings_(ss);
+  if (String(currentSettings[V6_4_0_PRODUCT_MIGRATION_KEY] || '') === '完了') return;
+
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(10000);
+  try {
+    currentSettings = getSettings_(ss);
+    if (String(currentSettings[V6_4_0_PRODUCT_MIGRATION_KEY] || '') === '完了') return;
+
+    var lastRow = products.getLastRow();
+    var values = lastRow > 1 ? products.getRange(2,1,lastRow-1,14).getValues() : [];
+    var names = {};
+    var maxNo = 0;
+    for (var i = 0; i < values.length; i++) {
+      var idMatch = String(values[i][0] || '').match(/^P(\d+)$/i);
+      if (idMatch) maxNo = Math.max(maxNo, Number(idMatch[1]) || 0);
+      var existingName = String(values[i][2] || '').trim();
+      if (existingName === 'コピー用紙') {
+        products.getRange(i + 2,3).setValue('コピー用紙 A4');
+        existingName = 'コピー用紙 A4';
+      }
+      if (existingName) names[existingName.toLowerCase()] = true;
+    }
+
+    var rowsToAdd = [];
+    for (var j = 0; j < V6_4_0_PRODUCTS.length; j++) {
+      var category = V6_4_0_PRODUCTS[j][0];
+      var name = V6_4_0_PRODUCTS[j][1];
+      if (names[name.toLowerCase()]) continue;
+      maxNo++;
+      rowsToAdd.push([
+        'P' + Utilities.formatString('%03d', maxNo),category,name,'個',1,1,1,true,
+        '','','','',1,'個'
+      ]);
+      names[name.toLowerCase()] = true;
+    }
+    if (rowsToAdd.length) {
+      products.getRange(products.getLastRow() + 1,1,rowsToAdd.length,14).setValues(rowsToAdd);
+    }
+    setSetting_(ss, V6_4_0_PRODUCT_MIGRATION_KEY, '完了');
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function getInitialData() {
   const ss = getSS_();
+  ensureV6_4_0Products_(ss);
   const settings = getSettings_(ss);
   return {
     appName: settings['管理アプリ名'] || '消耗品管理・発注',
@@ -449,7 +531,9 @@ function formatDateTimeJa_(value) {
 
 function getProductAdminMaster(pin) {
   assertAdmin_(pin);
-  return getAllProducts_(getSS_());
+  var ss = getSS_();
+  ensureV6_4_0Products_(ss);
+  return getAllProducts_(ss);
 }
 
 function addProduct(payload) {
