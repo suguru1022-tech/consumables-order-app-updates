@@ -1,6 +1,6 @@
 {
-  "version": "6.3.0",
+  "version": "6.4.0",
   "publishedAt": "2026-09-02",
-  "notes": "商品マスターに仕入先・発注ページ・商品画像・メモの設定を統合し、商品ごとの情報を一画面で管理できるようにしました。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.3.0.json"
+  "notes": "店舗運用で使用する24商品を商品マスターへ安全に追加し、既存のコピー用紙をコピー用紙 A4へ名称変更、コピー用紙 A3を追加しました。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.4.0.json"
 }
