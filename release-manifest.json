@@ -1,6 +1,6 @@
 {
-  "version": "6.6.1",
+  "version": "6.6.2",
   "publishedAt": "2026-09-02",
-  "notes": "本部管理画面をPC向けに最適化しました。本部発注一覧を2列表示にし、商品マスターは基本情報と店舗・仕入先情報を左右に配置して、一覧性と操作効率を改善しました。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.1.json"
+  "notes": "商品マスターに折りたたみ表示を追加しました。発注ページと商品画像が登録済みの商品は初期状態で閉じ、登録状況をバッジで確認できます。すべて開く・すべて閉じる操作にも対応しました。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.2.json"
 }
