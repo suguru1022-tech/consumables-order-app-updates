@@ -1,6 +1,6 @@
 {
-  "version": "6.2.2",
+  "version": "6.2.3",
   "publishedAt": "2026-09-02",
-  "notes": "本部へ未送信の商品が発注リストに残っている間、タブを赤系で強調し、未送信件数バッジと注意表示を追加",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.2.json"
+  "notes": "本部への発注依頼送信中はボタンを無効化して「送信中…」と表示し、連打による同一発注の重複送信を防止",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.3.json"
 }
