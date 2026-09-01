@@ -1,6 +1,6 @@
 {
-  "version": "6.1.3",
+  "version": "6.1.4",
   "publishedAt": "2026-09-01",
-  "notes": "システム更新時に画面の更新マニフェストURLをサーバーへ明示的に渡して更新前後に再保存し、画面側にも正式URLの既定値を保持するよう改善",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.3.json"
+  "notes": "本部発注の手配済み操作に処理中・完了フィードバックと二重押下防止を追加。納品済み操作を廃止し、手配時に納品予定日または予定期間を登録できるよう改善",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.4.json"
 }
