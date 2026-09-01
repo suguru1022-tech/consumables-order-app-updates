@@ -4,9 +4,3 @@
   "notes": "本部管理画面をPC向けに最適化しました。本部発注一覧を2列表示にし、商品マスターは基本情報と店舗・仕入先情報を左右に配置して、一覧性と操作効率を改善しました。",
   "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.1.json"
 }
-{
-  "version": "6.6.0",
-  "publishedAt": "2026-09-02",
-  "notes": "商品ごとに店舗別の対象外設定を追加し、対象外店舗の在庫・発注画面と印刷チェックリストから非表示にしました。対象外商品の誤送信もサーバー側で防止します。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.0.json"
-}
