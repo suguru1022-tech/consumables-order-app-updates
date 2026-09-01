@@ -5,7 +5,7 @@ const SHEETS = {
   SETTINGS: 'Settings'
 };
 
-const APP_VERSION = '6.1.9';
+const APP_VERSION = '6.2.0';
 const UPDATER_MARKER = '__FUNFIELDS_SELF_UPDATER_V1__';
 const DEFAULT_UPDATE_MANIFEST_URL = 'https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-manifest.json';
 const UPDATE_MANIFEST_URL_PROPERTY = 'UPDATE_MANIFEST_URL';
@@ -403,13 +403,14 @@ function updateOrderLineStatus(payload) {
       throw new Error('この発注はすでに処理済みか、取り下げられています。画面を更新してください。');
     }
     if (payload.status === '手配済み') {
+      const deliveryUndecided = payload.deliveryUndecided === true;
       const deliveryFrom = String(payload.deliveryFrom || '').trim();
       const deliveryTo = String(payload.deliveryTo || deliveryFrom).trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryTo)) {
+      if (!deliveryUndecided && (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryTo))) {
         throw new Error('納品予定日を入力してください。');
       }
-      if (deliveryTo < deliveryFrom) throw new Error('納品予定の終了日は開始日以降にしてください。');
-      sheet.getRange(row,12,1,2).setValues([[deliveryFrom,deliveryTo]]);
+      if (!deliveryUndecided && deliveryTo < deliveryFrom) throw new Error('納品予定の終了日は開始日以降にしてください。');
+      sheet.getRange(row,12,1,2).setValues([[deliveryUndecided ? '未確定' : deliveryFrom,deliveryUndecided ? '' : deliveryTo]]);
     }
     sheet.getRange(row,9).setValue(payload.status);
     SpreadsheetApp.flush();
