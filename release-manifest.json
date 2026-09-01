@@ -1,6 +1,6 @@
 {
-  "version": "6.1.9",
+  "version": "6.2.0",
   "publishedAt": "2026-09-01",
-  "notes": "システム更新後は新バージョンの反映を確認できるまで再読み込みせず待機し、白画面を防止。カウントダウンと反映待ち表示を赤字で強調",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.1.9.json"
+  "notes": "本部の手配済み処理で納品予定を「日付を指定」または「未確定」から選択可能に改善。未確定の場合は店舗側履歴にも明示",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.0.json"
 }
