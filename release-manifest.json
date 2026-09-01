@@ -1,6 +1,6 @@
 {
-  "version": "6.2.4",
+  "version": "6.3.0",
   "publishedAt": "2026-09-02",
-  "notes": "店舗を初期未選択に変更し、店舗選択前の操作を防止。発注リストを店舗に固定し、店舗変更時の警告と送信前の店舗名強調確認を追加",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.4.json"
+  "notes": "商品マスターに仕入先・発注ページ・商品画像・メモの設定を統合し、商品ごとの情報を一画面で管理できるようにしました。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.3.0.json"
 }
