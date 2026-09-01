@@ -1,6 +1,6 @@
 {
-  "version": "6.6.3",
+  "version": "6.6.4",
   "publishedAt": "2026-09-02",
-  "notes": "システム更新画面の現在バージョン表示を改善し、読み込み中のまま残らないようにしました。あわせて、手配済み登録時に「売り切れのため変更」「送料を考慮して数量変更」を選べる手配内容メモを追加し、店舗側の履歴でも確認できるようにしました。",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.3.json"
+  "notes": "商品マスターの並び順をドラッグ＆ドロップで変更できるようにしました。保存後は店舗の在庫・発注画面と印刷チェックリストへも同じ順番で反映されます。",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.6.4.json"
 }
