@@ -1,6 +1,6 @@
 {
-  "version": "6.2.1",
-  "publishedAt": "2026-09-01",
-  "notes": "システム更新を発注者向けの独立タブへ移動し、正式GitHub更新元へ固定。Web画面本体の配信準備完了を確認してからキャッシュを避けて再表示するよう改善",
-  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.1.json"
+  "version": "6.2.2",
+  "publishedAt": "2026-09-02",
+  "notes": "本部へ未送信の商品が発注リストに残っている間、タブを赤系で強調し、未送信件数バッジと注意表示を追加",
+  "packageUrl": "https://raw.githubusercontent.com/suguru1022-tech/consumables-order-app-updates/refs/heads/main/release-package-v6.2.2.json"
 }
